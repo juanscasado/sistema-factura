@@ -1,37 +1,84 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Invoice, InvoiceItem } from '../types';
 
 interface Props {
   onAdd: (invoice: Invoice) => void;
+  editingInvoice?: Invoice | null;
 }
 
-const InvoiceForm: React.FC<Props> = ({ onAdd }) => {
+const InvoiceForm: React.FC<Props> = ({ onAdd, editingInvoice }) => {
   const [customer, setCustomer] = useState('');
   const [date, setDate] = useState('');
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [desc, setDesc] = useState('');
   const [qty, setQty] = useState(1);
   const [price, setPrice] = useState(0);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (editingInvoice) {
+      setCustomer(editingInvoice.customer);
+      setDate(editingInvoice.date);
+      setItems(editingInvoice.items);
+    } else {
+      setCustomer('');
+      setDate('');
+      setItems([]);
+    }
+    setError('');
+  }, [editingInvoice]);
 
   const addItem = () => {
+    if (!desc) {
+      setError('La descripción es obligatoria.');
+      return;
+    }
+    if (qty <= 0) {
+      setError('La cantidad debe ser mayor a 0.');
+      return;
+    }
+    if (price < 0) {
+      setError('El precio no puede ser negativo.');
+      return;
+    }
     setItems([...items, { id: Date.now(), description: desc, quantity: qty, price }]);
     setDesc('');
     setQty(1);
     setPrice(0);
+    setError('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customer || !date || items.length === 0) return;
-    onAdd({ id: Date.now(), customer, date, items });
+    if (!customer) {
+      setError('El cliente es obligatorio.');
+      return;
+    }
+    if (!date) {
+      setError('La fecha es obligatoria.');
+      return;
+    }
+    if (items.length === 0) {
+      setError('Debe agregar al menos un item.');
+      return;
+    }
+    const invoice: Invoice = {
+      id: editingInvoice ? editingInvoice.id : Date.now(),
+      customer,
+      date,
+      items,
+    };
+    onAdd(invoice);
     setCustomer('');
     setDate('');
     setItems([]);
+    setError('');
   };
 
   return (
     <form onSubmit={handleSubmit}>
-      <h2>Nueva Factura</h2>
+      <h2>{editingInvoice ? 'Editar Factura' : 'Nueva Factura'}</h2>
+      {error && <div style={{ color: 'red', marginBottom: '1em' }}>{error}</div>}
       <input
         type="text"
         placeholder="Cliente"
@@ -74,7 +121,7 @@ const InvoiceForm: React.FC<Props> = ({ onAdd }) => {
           <li key={item.id}>{item.description} - {item.quantity} x ${item.price}</li>
         ))}
       </ul>
-      <button type="submit">Guardar Factura</button>
+      <button type="submit">{editingInvoice ? 'Actualizar' : 'Guardar Factura'}</button>
     </form>
   );
 };
